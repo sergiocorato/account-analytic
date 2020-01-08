@@ -13,6 +13,7 @@ class StockMove(models.Model):
     analytic_account_id = fields.Many2one(
         string='Analytic Account',
         comodel_name='account.analytic.account',
+        oldname='analytic_template'
     )
 
 
