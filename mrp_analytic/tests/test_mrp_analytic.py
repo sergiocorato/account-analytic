@@ -1,43 +1,44 @@
 # © 2015 Pedro M. Baeza - Antiun Ingeniería
 # License AGPL-3 - See http://www.gnu.org/licenses/agpl-3.0.html
 
-from odoo.tests import common
+import odoo
+from odoo.tests import TransactionCase
 
 
-class TestMrpAnalytic(common.TransactionCase):
+class TestMrpAnalytic(TransactionCase):
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.analytic_account = cls.env['account.analytic.account'].create(
+    def setUp(self):
+        super(TestMrpAnalytic, self).setUp()
+        self.analytic_account = self.env['account.analytic.account'].create(
             {'name': 'Analytic account test'})
-        cls.product = cls.env['product.product'].create({
-            'name': 'Test product',
+        self.product_category = self.env['product.category'].create({
+            'name': 'Test Product category',
         })
-        cls.bom = cls.env['mrp.bom'].create(
+        self.product = self.env['product.product'].create({
+            'name': 'Test Sale Product',
+            'sale_ok': True,
+            'type': 'product',
+            'categ_id': self.product_category.id,
+            'description_sale': 'Test Description Sale',
+        })
+        self.bom = self.env['mrp.bom'].create(
             {
-                'product_id': cls.product.id,
-                'product_tmpl_id': cls.product.product_tmpl_id.id,
+                'product_id': self.product.id,
+                'product_tmpl_id': self.product.product_tmpl_id.id,
             })
-        cls.production = cls.env['mrp.production'].create(
+        self.production = self.env['mrp.production'].create(
             {
-                'product_id': cls.product.id,
-                'analytic_account_id': cls.analytic_account.id,
-                'product_uom_id': cls.product.uom_id.id,
-                'bom_id': cls.bom.id,
+                'product_id': self.product.id,
+                'analytic_account_id': self.analytic_account.id,
+                'product_uom_id': self.product.uom_id.id,
+                'bom_id': self.bom.id,
             })
-        cls.partner = cls.env.ref("base.res_partner_1")
+        self.partner = self.env.ref("base.res_partner_1")
 
     def test_num_productions(self):
         self.assertEqual(self.analytic_account.num_productions, 1)
 
     def test_sale_analytic(self):
-        module = self.env['ir.module.module'].search(
-            [('name', '=', 'sale_management')])
-        if not module:
-            return False
-        module.button_install()
-
         sale_order = self.env['sale.order'].create({
             'partner_id': self.partner.id,
             'analytic_account_id': self.analytic_account.id,
@@ -55,3 +56,15 @@ class TestMrpAnalytic(common.TransactionCase):
         manufacturing_order = self.env['mrp.production'].search(
             [('account_analytic_id', '=', self.analytic_account.id)])
         self.assertTrue(manufacturing_order)
+
+
+@odoo.tests.tagged('post_install', '-at_install')
+class TestModuleInstall(TransactionCase):
+
+    def setUp(self):
+        super(TestModuleInstall, self).setUp()
+        Imm = self.env['ir.module.module']
+        self.own_module = Imm.search([('name', '=', 'sale_management')])
+        if not self.own_module:
+            return False
+        self.own_module.button_install()
